@@ -1,0 +1,48 @@
+#######################################
+# Syntax Coloring Map
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+Toio	KEYWORD1
+ToioCore	KEYWORD1
+ToioCoreMotionData	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+scan	KEYWORD2
+loop	KEYWORD2
+
+getAddress	KEYWORD2
+getName	KEYWORD2
+connect	KEYWORD2
+disconnect	KEYWORD2
+isConnected	KEYWORD2
+onConnection	KEYWORD2
+playSoundRaw	KEYWORD2
+playSoundEffect	KEYWORD2
+stopSound	KEYWORD2
+turnOnLed	KEYWORD2
+turnOffLed	KEYWORD2
+getBatteryLevel	KEYWORD2
+onBattery	KEYWORD2
+getButtonState	KEYWORD2
+onButton	KEYWORD2
+getMotion	KEYWORD2
+onMotion	KEYWORD2
+getBleProtocolVersion	KEYWORD2
+setFlatThreshold	KEYWORD2
+setClashThreshold	KEYWORD2
+setDtapThreshold	KEYWORD2
+controlMotor	KEYWORD2
+drive	KEYWORD2
+_loop	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
