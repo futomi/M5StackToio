@@ -6,16 +6,40 @@ M5StackToio はソニー・インタラクティブエンタテインメント�
 ---------------------------------------
 ## 目次
 
-* [開発環境セットアップ](#Setup-IDE)
-* [M5StackToio のインストール](#Install-M5StackToio)
-* [スケッチ例](#Sketches)
-* [メソッド](#Methods)
+* [1. 開発環境セットアップ](#Setup-IDE)
+* [2. M5StackToio のインストール](#Install-M5StackToio)
+* [3. 使い方](#Usage)
+* [4. `Toio` オブジェクト](#Toio-object)
+  * [`scan()` メソッド (toio コア キューブ発見)](#Toio-scan-method)
+  * [`loop()` メソッド (イベント処理)](#Toio-loop-method)
+* [5. `ToioCore` オブジェクト](#ToioCore-object)
+  * [`getAddress()` メソッド (アドレス取得)](#ToioCore-getAddress-method)
+  * [`getName()` メソッド (デバイス名取得)](#ToioCore-getName-method)
+  * [`connect()` メソッド (BLE 接続)](#ToioCore-connect-method)
+  * [`disconnect()` メソッド (BLE 切断)](#ToioCore-disconnect-method)
+  * [`isConnected()` メソッド (接続状態取得)](#ToioCore-isConnected-method)
+  * [`onConnection()` メソッド (接続状態イベントのコールバックをセット)](#ToioCore-onConnection-method)
+  * [`getBleProtocolVersion()` メソッド (BLE プロトコルバージョン取得)](#ToioCore-getBleProtocolVersion-method)
+  * [`playSoundEffect()` メソッド (効果音再生)](#ToioCore-playSoundEffect-method)
+  * [`playSoundRaw()` メソッド (サウンド再生開始)](#ToioCore-playSoundRaw-method)
+  * [`stopSound()` メソッド (サウンド再生停止)](#ToioCore-stopSound-method)
+  * [`turnOnLed()` メソッド (LED 点灯)](#ToioCore-turnOnLed-method)
+  * [`turnOffLed()` メソッド (LED 消灯)](#ToioCore-turnOffLed-method)
+  * [`getBatteryLevel()` メソッド (バッテリーレベルを取得)](#ToioCore-getBatteryLevel-method)
+  * [`onBattery()` メソッド (バッテリーイベントのコールバックをセット)](#ToioCore-onBattery-method)
+  * [`getButtonState()` メソッド (ボタンの状態を取得)](#ToioCore-getButtonState-method)
+  * [`onButton()` メソッド (ボタンイベントのコールバックをセット)](#ToioCore-onButton-method)
+  * [`getMotion()` メソッド (モーションセンサーの状態を取得)](#ToioCore-getMotion-method)
+  * [`onMotion()` メソッド (モーションセンサーのコールバックをセット)](#ToioCore-onMotion-method)
+  * [`controlMotor()` メソッド (モーター制御)](#ToioCore-controlMotor-method)
+  * [`drive()` メソッド (運転)](#ToioCore-drive-method)
+* [6. サンプルスケッチ](#Sample-Sketches)
 * [リリースノート](#Release-Note)
 * [リファレンス](#References)
 * [ライセンス](#License)
 
 ---------------------------------------
-## <a id="Setup-IDE">開発環境セットアップ</a>
+## <a id="Setup-IDE">1. 開発環境セットアップ</a>
 
 本ライブラリーを利用するにあたり M5Stack 開発環境が必要です。M5Stack の公式サイト (英語) に記載された手順に従って開発環境をセットアップしてください。
 
@@ -24,14 +48,916 @@ M5StackToio はソニー・インタラクティブエンタテインメント�
 USB ドライバーのインストール、Arduino-IDE のインストール、Boards Manager の設定、ボードのインストール、ボードの選択、M5Stack Library のインストールが必要となります。
 
 ---------------------------------------
-## <a id="Install-M5StackToio">M5StackToio のインストール</a>
+## <a id="Install-M5StackToio">2. M5StackToio のインストール</a>
 
 本ページの右上の `Code` ボタンをクリックし `Download ZIP` を選択し、本ライブラリの zip ファイルをダウンロードしてください。
 
 Arduino IDE を起動し、メニューバーの `スケッチ` -> `ライブラリをインクルード` -> `.ZIP形式のライブラリをインストール...` を選択してください。先ほどダウンロードした本ライブラリの zip ファイルを選択すると、本ライブラリのインストールが完了します。
 
+もし git コマンドが利用できるのであれば、次のようにインストールすることも可能です。以下は Windows10 の PowerShell を使った場合の例です。
+
+```
+cd ~
+cd Documents\Arduino\libraries
+git clone https://github.com/futomi/M5StackToio.git
+```
+
 ---------------------------------------
-## <a id="Sketches">スケッチ例</a>
+## <a id="Usage">3. 使い方</a>
+
+以下のサンプルコードは、toio コア キューブをスキャンし、最初に発見した toio コア キューブに接続し、3 秒後に切断します。
+
+```c++
+#include <M5Stack.h>
+#include <Toio.h>
+
+// Toio オブジェクト生成
+Toio toio;
+
+void setup() {
+  // M5Stack の初期化
+  M5.begin();
+  M5.Power.begin();
+  M5.Lcd.clear();
+
+  Serial.println("- toio コア キューブをスキャンします。");
+  std::vector<ToioCore*> toiocore_list = toio.scan(3);
+  size_t n = toiocore_list.size();
+  if (n == 0) {
+    Serial.println("- toio コア キューブが見つかりませんでした。");
+    return;
+  }
+  Serial.printf("- %d 個の toio コア キューブが見つかりました。\n", n);
+
+  Serial.println("- toio コア キューブに BLE 接続します。");
+  ToioCore* toiocore = toiocore_list.at(0);
+  bool connected = toiocore->connect();
+  if (!connected) {
+    Serial.println("- BLE 接続に失敗しました。");
+    return;
+  }
+  Serial.println("- BLE 接続に成功しました。");
+  Serial.println("- 3 秒後に切断します。");
+  delay(3000);
+  toiocore->disconnect();
+  Serial.println("- BLE コネクションを切断しました。");
+}
+
+void loop() {
+
+}
+```
+
+上記サンプルコードを実行する前に、toio コア キューブの電源を入れてください。実行に成功すれば、Arduino IDE のシリアルモニタに次の結果が表示されます。
+
+```
+- toio コア キューブをスキャンします。
+- 1 個の toio コア キューブが見つかりました。
+- toio コア キューブに BLE 接続します。
+- BLE 接続に成功しました。
+- 3 秒後に切断します。
+- BLE コネクションを切断しました。
+```
+
+上記のサンプルコードを以下に解説します。
+
+### ライブラリのインクルード
+
+以下の通り、`.ino` ファイルの先頭で、`M5Stack.h` に加え、本ライブラリのヘッダファイル `Toio.h` をインクルードしてください。
+
+```c++
+#include <M5Stack.h>
+#include <Toio.h>
+```
+
+次に、グローバル変数として、`Toio` オブジェクトを生成します。以下は変数 `toio` に `Toio` オブジェクトを格納しています。
+
+```c++
+Toio toio;
+```
+
+### toio コア キューブの発見
+
+以降は `.ino` ファイルの `setup()` 関数の中で実行します。
+
+toio コア キューブを発見するには、`Toio` オブジェクトの `scan()` メソッドを実行します。`scan()` メソッドにはスキャン秒数を指定します。指定しなければ 3 秒間スキャンを行います。
+
+```c++
+std::vector<ToioCore*> toiocore_list = toio.scan(3);
+```
+
+`scan()` メソッドは、指定秒数だけスキャンを実行してから、発見された toio コア キューブのリストを返します。リストの型は `std::vector` です。個々の toio コア キューブを表すオブジェクトの型は `ToioCore` オブジェクトのポインタです。この `ToioCore` オブジェクトを使って、該当の toio コア キューブを操作します。
+
+次の処理に移る前に、発券された toio コア キューブの数をチェックします。
+
+```c++
+size_t n = toiocore_list.size();
+if(n == 0) {
+  Serial.println("toio コア キューブが見つかりませんでした。");
+  return;
+}
+ToioCore* toiocore = toiocore_list.at(0);
+```
+
+上記コードでは最初に見つかった toio コア キューブを表す `ToioCore` オブジェクトのポインタを変数 `toiocore` に格納しています。
+
+### toio コア キューブに BLE 接続
+
+発見した toio コア キューブに BLE 接続するには、該当の toio コア キューブを表す `ToioCore` オブジェクトのポインタから `connect()` メソッドを呼び出します。
+
+```c++
+bool connected = toiocore->connect();
+if(!connected) {
+  Serial.println("BLE 接続に失敗しました。");
+  return;
+}
+```
+
+`connect()` メソッドは BLE 接続が完了すると `true` を返します。この戻り値をチェックしてください。
+
+toio コア キューブに BLE 接続できたら、以降で解説する `toioCore` オブジェクトのメソッドをポインタ経由で呼び出して toio コア キューブを操作します。
+
+### toio コア キューブを切断
+
+BLE 接続した toio コア キューブを切断するには、`ToioCore` オブジェクトのポインタから `disconnect()` メソッドを呼び出します。
+
+```c++
+toiocore->disconnect();
+```
+
+---------------------------------------
+## <a id="Toio-object">4. `Toio` オブジェクト</a>
+
+`Toio` オブジェクトは次のように生成します。以下のコードでは変数 `toio` に `Toio` オブジェクトが格納されます。
+
+```c++
+Toio toio;
+```
+
+以降、変数 `toio` に `Toio` オブジェクトが格納されているとして解説します。
+
+
+### <a id="Toio-scan-method">✔ `scan()` メソッド (toio コア キューブ発見)</a>
+
+`scan()` メソッドは指定秒数だけ toio コア キューブをスキャンします。
+
+#### プロトタイプ宣言
+
+```c++
+std::vector<ToioCore*> scan(uint8_t duration);
+```
+
+#### 引数
+
+No. |  変数名     | 型        | 必須   | 説明
+:---|:-----------|:----------|:-------|:-------------
+0   | `duration` | `uint8_t` | &nbsp; | スキャン秒数 (デフォルト値: 3)
+
+#### コードサンプル
+
+```c++
+std::vector<ToioCore*> toiocore_list = toio.scan(3);
+```
+
+### <a id="Toio-loop-method">✔ `loop()` メソッド (イベント処理)</a>
+
+`loop()` メソッドはイベント処理を実行します。後述のイベントハンドラ設定関数を使う場合は、`.ino` ファイルの `loop()` メソッド内で必ず呼び出してください。
+
+#### プロトタイプ宣言
+
+```c++
+void loop();
+```
+
+#### 引数
+
+なし
+
+#### コードサンプル
+
+```c++
+void loop() {
+  M5.update();
+  toio.loop();
+  ...
+}
+```
+
+---------------------------------------
+## <a id="ToioCore-object">5. `ToioCore` オブジェクト</a>
+
+前述の通り、発券した toio コア キューブを操作するには、`toioCore` オブジェクトのメソッドをポインタ経由で呼び出します。以下、`toioCore` オブジェクトに実装さえれたメソッドを説明します。以降、変数 `toiocore` が `toioCore` オブジェクトのポインタとします。
+
+### <a id="ToioCore-getAddress-method">✔ `getAddress()` メソッド (アドレス取得)</a>
+
+toio コア キューブの MAC アドレスを返します。
+
+#### プロトタイプ宣言
+
+```c++
+std::string getAddress();
+```
+
+#### 引数
+
+なし
+
+#### コードサンプル
+
+```c++
+std::string mac = toiocore->getAddress();
+Serial.println(mac.c_str()); // 例 "d1:52:fa:d2:c6:a1"
+```
+
+### <a id="ToioCore-getName-method">✔ `getName()` メソッド (デバイス名取得)</a>
+
+toio コア キューブのデバイス名を返します。デバイス名は、toio コア キューブがアドバタイジングパケットにセットした `localName` の値です。通常は `"toio Core Cube"` 固定です。
+
+#### プロトタイプ宣言
+
+```c++
+std::string getName();
+```
+
+#### 引数
+
+なし
+
+#### コードサンプル
+
+```c++
+std::string name = toiocore->getName();
+Serial.println(name.c_str()); // 例 "toio Core Cube"
+```
+
+### <a id="ToioCore-connect-method">✔ `connect()` メソッド (BLE 接続)</a>
+
+toio コア キューブに BLE 接続を行います。
+
+#### プロトタイプ宣言
+
+```c++
+bool connect();
+```
+
+#### 引数
+
+なし
+
+#### コードサンプル
+
+```c++
+bool connected = toiocore->connect();
+if (!connected) {
+  Serial.println("- BLE 接続に失敗しました。");
+  return;
+}
+```
+
+### <a id="ToioCore-disconnect-method">✔ `disconnect()` メソッド (BLE 切断)</a>
+
+toio コア キューブとの BLE コネクションを切断します。
+
+#### プロトタイプ宣言
+
+```c++
+void disconnect();
+```
+
+#### 引数
+
+なし
+
+#### コードサンプル
+
+```c++
+toiocore->disconnect();
+```
+
+### <a id="ToioCore-isConnected-method">✔ `isConnected()` メソッド (接続状態取得)</a>
+
+toio コア キューブとの BLE 接続状態を返します。接続中であれば `true` を、切断中であれば `false` を返します。
+
+#### プロトタイプ宣言
+
+```c++
+bool isConnected();
+```
+
+#### 引数
+
+なし
+
+#### コードサンプル
+
+```c++
+if(toiocore->isConnected()) {
+  Serial.println("接続中");
+} else {
+  Serial.println("切断中");
+}
+```
+
+### <a id="ToioCore-onConnection-method">✔ `onConnection()` メソッド (接続状態イベントのコールバックをセット)</a>
+
+toio コア キューブとの BLE 接続状態イベントのコールバックをセットします。BLE 接続状態に変化があれば、引数に指定したコールバック関数を呼び出します。コールバック関数には接続状態を表す bool 値が引き渡されます。
+
+#### プロトタイプ宣言
+
+```c++
+typedef std::function<void(bool connected)> OnConnectionCallback;
+void onConnection(OnConnectionCallback cb);
+```
+
+#### 引数
+
+No. | 変数名   | 型                     | 必須   | 説明
+:---|:--------|:-----------------------|:-------|:-------------
+1   | `cb`    | `OnConnectionCallback` | ✔     | コールバック関数
+
+#### コードサンプル
+
+以下のサンプルスケッチは、10 秒おきに BLE 接続と切断を繰り返します。コールバック関数により、接続状態のイベントが発生すると、その状態を出力します。
+
+コールバックを使う場合は、`.ino` ファイルの `loop()` 関数内で `Toio` オブジェクトの [`loop()`](#Toio-loop-method) メソッドを呼び出してください。コールバックは、`.ino` ファイルの `loop()` 関数が実行が開始されてから発生したイベントしかハンドリングできませんので注意してください。そのため、以下のサンプルスケッチでは、`loop()` 関数内で BLE 接続と切断を行っています。
+
+```c++
+#include <M5Stack.h>
+#include <Toio.h>
+
+// Toio オブジェクト生成
+Toio toio;
+
+// ToioCore オブジェクトのポインタ
+ToioCore* toiocore = nullptr;
+
+// BLE 接続・切断のタイムスタンプ
+unsigned long conn_time = millis();
+
+void setup() {
+  // M5Stack の初期化
+  M5.begin();
+  M5.Power.begin();
+
+  // toio コア キューブのスキャン開始
+  std::vector<ToioCore*> toiocore_list = toio.scan(3);
+  if (toiocore_list.size() > 0) {
+    toiocore = toiocore_list.at(0);
+  }
+
+  // BLE 接続状態イベントのコールバックをセット
+  toiocore->onConnection([](bool state) {
+    Serial.println(state ? "接続" : "切断");
+  });
+}
+
+void loop() {
+  // コールバックを使う場合には必ず Toio オブジェクトの loop() を呼び出す
+  toio.loop();
+
+  if (toiocore) {
+    // 10 秒おきに BLE 接続・切断を繰り返す
+    unsigned long now = millis();
+    if (now - conn_time >= 10000) {
+      if (toiocore->isConnected()) {
+        toiocore->disconnect();
+      } else {
+        toiocore->connect();
+      }
+      conn_time = now;
+    }
+  }
+}
+```
+
+### <a id="ToioCore-getBleProtocolVersion-method">✔ `getBleProtocolVersion()` メソッド (BLE プロトコルバージョン取得)</a>
+
+toio コア キューブの BLE プロトコルバージョンを取得します。
+
+#### プロトタイプ宣言
+
+```c++
+std::string getBleProtocolVersion();
+```
+
+#### 引数
+
+なし
+
+#### コードサンプル
+
+```c++
+std::string ble_ver = toiocore->getBleProtocolVersion();
+Serial.println(ble_ver.c_str()); // 例 "2.1.0"
+```
+
+### <a id="ToioCore-playSoundEffect-method">✔ `playSoundEffect()` メソッド (効果音再生)</a>
+
+toio コア キューブにプリセットされた効果音を再生します。
+
+#### プロトタイプ宣言
+
+```c++
+void playSoundEffect(uint8_t sound_id, uint8_t volume = 0xff);
+```
+
+#### 引数
+
+No. | 変数名      | 型        | 必須   | 説明
+:---|:-----------|:----------|:-------|:-------------
+1   | `sound_id` | `uint8_t` | ✔     | 効果音の ID (0 ～ 10)
+2   | `volume`   | `uint8_t` | &nbsp; | 音量 (0 ～ 255)。指定が無ければ 255。
+
+効果音の ID の意味は以下の通りです。
+
+効果音 ID | 効果音名称
+:---------|:---------------
+`0`       | Enter
+`1`       | Selected
+`2`       | Cancel
+`3`       | Cursor
+`4`       | Mat in
+`5`       | Mat out
+`6`       | Get 1
+`7`       | Get 2
+`8`       | Get 3
+`9`       | Effect 1
+`10`      | Effect 2
+
+#### コードサンプル
+
+```c++
+toiocore->playSoundEffect(3);
+```
+
+### <a id="ToioCore-playSoundRaw-method">✔ `playSoundRaw()` メソッド (サウンド再生開始)</a>
+
+toio コア キューブの通信仕様で定義された生データを、サウンドの Characteristic に書き込みます。主に MIDI データを再生するために使います。詳細は [toio コア キューブのサウンドの仕様](https://toio.github.io/toio-spec/docs/ble_sound)を参照してください。
+
+#### プロトタイプ宣言
+
+```c++
+void playSoundRaw(uint8_t* data, size_t length);
+```
+
+#### 引数
+
+No. | 変数名    | 型         | 必須   | 説明
+:---|:---------|:-----------|:-------|:-------------
+1   | `data`   | `uint8_t*` | ✔     | 書き込むデータのバイト列
+2   | `length` | `size_t`   | ✔     | 書き込むバイト数
+
+#### コードサンプル
+
+以下のサンプルコードは、[チャルメラ](https://www.myojofoods.co.jp/charumera/play/index.html)を最大音量で再生します。 
+
+```c++
+uint8_t charumera_data[39] = {
+  3,             // 制御の種類 (MIDI なら `3`)
+  1,             // 繰り返し回数
+  12,            // Operation の数
+  14,  69, 255,  // 140ms, A5
+  14,  71, 255,  // 140ms, B5
+  56,  73, 255,  // 560ms, C#6
+  14,  71, 255,  // 140ms, B5
+  14,  69, 255,  // 140ms, A5
+  114, 128, 255, // 無音
+  14,  69, 255,  // 140ms, A5
+  14,  71, 255,  // 140ms, B5
+  14,  73, 255,  // 560ms, C#6
+  14,  71, 255,  // 140ms, B5
+  14,  69, 255,  // 140ms, A5
+  56,  71, 255   // 560ms, B5
+};
+toiocore->playSoundRaw(charumera_data, 39);
+```
+
+### <a id="ToioCore-stopSound-method">✔ `stopSound()` メソッド (サウンド再生停止)</a>
+
+サウンド再生を停止します。
+
+#### プロトタイプ宣言
+
+```c++
+void stopSound();
+```
+
+#### 引数
+
+なし
+
+#### コードサンプル
+
+```c++
+toiocore->stopSound();
+```
+
+### <a id="ToioCore-turnOnLed-method">✔ `turnOnLed()` メソッド (LED 点灯)</a>
+
+toio コア キューブの LED を点灯します。
+
+#### プロトタイプ宣言
+
+```c++
+void turnOnLed(uint8_t r, uint8_t g, uint8_t b);
+```
+
+#### 引数
+
+No. | 変数名 | 型        | 必須   | 説明
+:---|:------|:----------|:-------|:-------------
+1   | `r`   | `uint8_t` | ✔     | 赤コンポーネント (`0` ～ `255`)
+2   | `g`   | `uint8_t` | ✔     | 緑コンポーネント (`0` ～ `255`)
+2   | `b`   | `uint8_t` | ✔     | 青コンポーネント (`0` ～ `255`)
+
+#### コードサンプル
+
+```c++
+toiocore->turnOnLed(0xff, 0xff, 0x00); // 黄色で点灯
+```
+
+※ 黒 (`0x00, 0x00, 0x00`) を指定すると消灯になります。
+
+### <a id="ToioCore-turnOffLed-method">✔ `turnOffLed()` メソッド (LED 消灯)</a>
+
+toio コア キューブの LED を消灯します。
+
+#### プロトタイプ宣言
+
+```c++
+void turnOffLed();
+```
+
+#### 引数
+
+なし
+
+#### コードサンプル
+
+```c++
+toiocore->turnOffLed();
+```
+
+### <a id="ToioCore-getBatteryLevel-method">✔ `getBatteryLevel()` メソッド (バッテリーレベルを取得)</a>
+
+toio コア キューブのバッテリーレベル (%) を取得します。
+
+#### プロトタイプ宣言
+
+```c++
+uint8_t getBatteryLevel();
+```
+
+#### 引数
+
+なし
+
+#### コードサンプル
+
+```c++
+uint8_t batt_level = toiocore->getBatteryLevel();
+Serial.printf("%d パーセント\n", batt_level);
+```
+
+### <a id="ToioCore-onBattery-method">✔ `onBattery()` メソッド (バッテリーイベントのコールバックをセット)</a>
+
+toio コア キューブのバッテリーイベントのコールバックをセットします。5 秒間隔で、引数に指定したコールバック関数を呼び出します。コールバック関数にはバッテリーレベル (パーセント) が引き渡されます。
+
+#### プロトタイプ宣言
+
+```c++
+typedef std::function<void(uint8_t level)> OnBatteryCallback;
+void onBattery(OnBatteryCallback cb);
+```
+
+#### 引数
+
+No. | 変数名   | 型                  | 必須   | 説明
+:---|:--------|:--------------------|:-------|:-------------
+1   | `cb`    | `OnBatteryCallback` | ✔     | コールバック関数
+
+#### コードサンプル
+
+以下のサンプルスケッチは、バッテリーイベントを受信する都度、バッテリーレベルを出力します。
+
+コールバックを使う場合は、`.ino` ファイルの `loop()` 関数内で `Toio` オブジェクトの [`loop()`](#Toio-loop-method) メソッドを呼び出してください。コールバックは、`.ino` ファイルの `loop()` 関数が実行が開始されてから発生したイベントしかハンドリングできませんので注意してください。
+
+```c++
+#include <M5Stack.h>
+#include <Toio.h>
+
+// Toio オブジェクト生成
+Toio toio;
+
+void setup() {
+  // M5Stack の初期化
+  M5.begin();
+  M5.Power.begin();
+
+  // toio コア キューブのスキャン開始
+  std::vector<ToioCore*> toiocore_list = toio.scan(3);
+  if (toiocore_list.size() == 0) {
+    return;
+  }
+  ToioCore* toiocore = toiocore_list.at(0);
+
+  // BLE 接続
+  toiocore->connect();
+
+  // バッテリーイベントのコールバックをセット
+  toiocore->onBattery([](uint8_t level) {
+    Serial.printf("%d パーセント\n", level);
+  });
+}
+
+void loop() {
+  // コールバックを使う場合には必ず Toio オブジェクトの loop() を呼び出す
+  toio.loop();
+}
+```
+
+### <a id="ToioCore-getButtonState-method">✔ `getButtonState()` メソッド (ボタンの状態を取得)</a>
+
+toio コア キューブ裏面のボタン (LED と同じ) の押下状態を取得します。押した状態なら `true` を、そうでなければ `false` を返します。
+
+#### プロトタイプ宣言
+
+```c++
+bool getButtonState();
+```
+
+#### 引数
+
+なし
+
+#### コードサンプル
+
+```c++
+if(toiocore->getButtonState()) {
+  Serial.println("ボタンが押されています。");
+} else {
+  Serial.println("ボタンは押されていません。");
+}
+```
+
+### <a id="ToioCore-onButton-method">✔ `onButton()` メソッド (ボタンイベントのコールバックをセット)</a>
+
+toio コア キューブのボタン押下イベントのコールバックをセットします。ボタン押下状態に変化があれば、引数に指定したコールバック関数を呼び出します。コールバック関数にはボタン押下状態を表す bool 値が引き渡されます。
+
+#### プロトタイプ宣言
+
+```c++
+typedef std::function<void(bool state)> OnButtonCallback;
+void onButton(OnButtonCallback cb);
+```
+
+#### 引数
+
+No. | 変数名   | 型                 | 必須   | 説明
+:---|:--------|:-------------------|:-------|:-------------
+1   | `cb`    | `OnButtonCallback` | ✔     | コールバック関数
+
+#### コードサンプル
+
+以下のサンプルスケッチは、ボタン押下状態に変化があると、その都度、その状態を出力します。
+
+コールバックを使う場合は、`.ino` ファイルの `loop()` 関数内で `Toio` オブジェクトの [`loop()`](#Toio-loop-method) メソッドを呼び出してください。コールバックは、`.ino` ファイルの `loop()` 関数が実行が開始されてから発生したイベントしかハンドリングできませんので注意してください。
+
+```c++
+#include <M5Stack.h>
+#include <Toio.h>
+
+// Toio オブジェクト生成
+Toio toio;
+
+void setup() {
+  // M5Stack の初期化
+  M5.begin();
+  M5.Power.begin();
+
+  // toio コア キューブのスキャン開始
+  std::vector<ToioCore*> toiocore_list = toio.scan(3);
+  if (toiocore_list.size() == 0) {
+    return;
+  }
+  ToioCore* toiocore = toiocore_list.at(0);
+
+  // BLE 接続
+  toiocore->connect();
+
+  // ボタン押下状態イベントのコールバックをセット
+  toiocore->onButton([](bool state) {
+    Serial.println(state ? "ボタン押下" : "ボタン解除");
+  });
+}
+
+void loop() {
+  // コールバックを使う場合には必ず Toio オブジェクトの loop() を呼び出す
+  toio.loop();
+}
+```
+
+### <a id="ToioCore-getMotion-method">✔ `getMotion()` メソッド (モーションセンサーの状態を取得)</a>
+
+toio コア キューブのモーションセンサーの状態を取得します。
+
+#### プロトタイプ宣言
+
+```c++
+struct ToioCoreMotionData {
+  bool flat;
+  bool clash;
+  bool dtap;
+  uint8_t attitude;
+};
+
+ToioCoreMotionData getMotion();
+```
+
+#### 引数
+
+なし
+
+#### 戻値
+
+`ToioCoreMotionData` 型の構造体が返されます。各メンバーの意味は以下の通りです。
+
+名前       | 型        | 説明
+:----------|:----------|:------------------------
+`flat`     | `bool`    | 水平検出 (`true`: 水平, `false`: 水平でない) 
+`clash`    | `bool`    | 衝突検出 (`true`: あり, `false`: なし)
+`dtap`     | `bool`    | ダブルタップ検出 (`true`: あり, `false`: なし)
+`attitude` | `uint8_t` | 姿勢検出 (後述)
+
+姿勢検出 `attitude` が取る値とその意味は以下の通りです。
+
+値  | toio コア キューブの姿勢
+:---|:-----------------------
+`1` | 天面が上
+`2` | 底面が上
+`3` | 背面が上
+`4` | 正面が上
+`5` | 右側面が上
+`6` | 左側面が上
+
+姿勢検出の詳細は [toio コア キューブ技術仕様](https://toio.github.io/toio-spec/docs/ble_sensor)をご覧ください。
+
+#### コードサンプル
+
+```c++
+ToioCoreMotionData motion = toiocore->getMotion();
+Serial.println("- 水平検出: " + String(motion.flat ? "水平" : "水平でない"));
+Serial.println("- 衝突検出: " + String(motion.clash ? "あり" : "なし"));
+Serial.println("- ダブルタップ検出: " + String(motion.dtap ? "あり" : "なし"));
+Serial.println("- 姿勢検出: " + String(motion.attitude));
+```
+
+### <a id="ToioCore-onMotion-method">✔ `onMotion()` メソッド (モーションセンサーのコールバックをセット)</a>
+
+toio コア キューブのモーションイベントのコールバックをセットします。モーションに変化があれば、引数に指定したコールバック関数を呼び出します。コールバック関数にはモーションを表す構造体が引き渡されます。
+
+#### プロトタイプ宣言
+
+```c++
+struct ToioCoreMotionData {
+  bool flat;
+  bool clash;
+  bool dtap;
+  uint8_t attitude;
+};
+
+typedef std::function<void(ToioCoreMotionData motion)> OnMotionCallback;
+void onMotion(OnMotionCallback cb);
+```
+
+#### 引数
+
+No. | 変数名   | 型                 | 必須   | 説明
+:---|:--------|:-------------------|:-------|:-------------
+1   | `cb`    | `OnMotionCallback` | ✔     | コールバック関数
+
+#### コードサンプル
+
+以下のサンプルスケッチは、モーションに変化があると、その都度、その状態を出力します。
+
+コールバックを使う場合は、`.ino` ファイルの `loop()` 関数内で `Toio` オブジェクトの [`loop()`](#Toio-loop-method) メソッドを呼び出してください。コールバックは、`.ino` ファイルの `loop()` 関数が実行が開始されてから発生したイベントしかハンドリングできませんので注意してください。
+
+```c++
+#include <M5Stack.h>
+#include <Toio.h>
+
+// Toio オブジェクト生成
+Toio toio;
+
+void setup() {
+  // M5Stack の初期化
+  M5.begin();
+  M5.Power.begin();
+
+  // toio コア キューブのスキャン開始
+  std::vector<ToioCore*> toiocore_list = toio.scan(3);
+  if (toiocore_list.size() == 0) {
+    return;
+  }
+  ToioCore* toiocore = toiocore_list.at(0);
+
+  // BLE 接続
+  toiocore->connect();
+
+  // モーションイベントのコールバックをセット
+  toiocore->onMotion([](ToioCoreMotionData motion) {
+    Serial.println("------------------------------------------");
+    Serial.println("- 水平検出: " + String(motion.flat ? "水平" : "水平でない"));
+    Serial.println("- 衝突検出: " + String(motion.clash ? "あり" : "なし"));
+    Serial.println("- ダブルタップ検出: " + String(motion.dtap ? "あり" : "なし"));
+    Serial.println("- 姿勢検出: " + String(motion.attitude));
+  });
+}
+
+void loop() {
+  // コールバックを使う場合には必ず Toio オブジェクトの loop() を呼び出す
+  toio.loop();
+}
+```
+
+### <a id="ToioCore-controlMotor-method">✔ `controlMotor()` メソッド (モーター制御)</a>
+
+toio コア キューブのモーターを制御します。
+
+#### プロトタイプ宣言
+
+```c++
+void controlMotor(bool ldir, uint8_t lspeed, bool rdir, uint8_t rspeed, uint16_t duration = 0);
+```
+
+#### 引数
+
+No. | 変数名      | 型         | 必須   | 説明
+:---|:-----------|:-----------|:-------|:-------------
+1   | `ldir`     | `bool`     | ✔     | 左モーターの回転方向 (`true`: 前進, `false`: 後進)
+2   | `lspeed`   | `uint8_t`  | ✔     | 左モーターの速度 (`0` ～ `115`)
+3   | `rdir`     | `bool`     | ✔     | 右モーターの回転方向 (`true`: 前進, `false`: 後進)
+4   | `rspeed`   | `uint8_t`  | ✔     | 右モーターの速度 (`0` ～ `115`)
+5   | `duration` | `uint16_t` | &nbsp; | モーターの制御時間 (ミリ秒)
+
+`lspeed` および `rspeed` の値と実際の速度の対応は、[toio コア キューブ通信仕様](https://toio.github.io/toio-spec/docs/ble_motor)をご覧ください。
+
+`duration` に `0` (デフォルト値) を指定すると、停止 (`lspeed`, `rspeed` に `0` をセット) 命令を受けるまで動き続けます。
+
+
+#### コードサンプル
+
+```c++
+// 右に曲がりながら進む
+toiocore->controlMotor(true, 50, true, 40);
+delay(5000);
+
+// 停止
+displayProgressMessage("Stopping...");
+toiocore->controlMotor(true, 0, true, 0);
+delay(5000);
+
+// 2 秒間だけ左に曲がりながら進む
+toiocore->controlMotor(true, 40, true, 50, 2000);
+delay(5000);
+```
+
+### <a id="ToioCore-drive-method">✔ `drive()` メソッド (運転)</a>
+
+ゲームパッドやジョイスティックを使うことを想定したモーター制御メソッドです。モーター制御をスロットルとステアリング操作に置き換えます。
+
+#### プロトタイプ宣言
+
+```c++
+void drive(int8_t throttle, int8_t steering);
+```
+
+#### 引数
+
+No. | 変数名      | 型        | 必須   | 説明
+:---|:-----------|:----------|:-------|:-------------
+1   | `throttle` | `int8_t`  | ✔     | スロットル (`-100` ～ `100`)
+2   | `steering` | `int8_t`  | ✔     | ステアリング (`-100` ～ `100`)
+
+`throttle` に正の値を指定すると前進、負の値を指定すると後進、`0` を指定すると停止します。`steering` に正の値を指定すると右に曲がり、負の値を指定すると左に曲がります。
+
+`steering` の絶対値が大きくなるにつれて、一方のモーターの回転数を緩めることで、ステアリング操作を実現しています。もし `throttle` に `100` を指定し、`steering` に `100` を指定すると、左モーターの速度は `100` のままに、右モーターの速度が `0` になります。つまり、右タイヤを軸に左にくるくる回ることになります。ラジコンカーのような動きを求めるなら、`steering` のリミットを `50` 程度に抑えておくのが良いでしょう。
+
+#### コードサンプル
+
+```c++
+// ゆっくりと左に曲がる
+toiocore->drive(20, -10);
+delay(5000);
+
+// 停止
+toiocore->drive(0, 0);
+```
+
+もし戦車のように左右のタイヤをそれぞれ反対方向に回転させて本体の中心を軸にくるくる回る動きを実現したい場合は、前述の [`controlMotor()`](#ToioCore-controlMotor-method) メソッドを使ってください。
+
+---------------------------------------
+## <a id="Sample-Sketches">6. サンプルスケッチ</a>
 
 本ライブラリのインストールが完了すると、Arduino IDE のメニューバーの `ファイル` -> `スケッチ例` の中から `M5StackToio` が選択できるようになります。この中には以下の 3 つのサンプルが用意されています。いずれも [M5Stack Basic](https://www.switch-science.com/catalog/3647/) および [M5Stack Gray](https://www.switch-science.com/catalog/3648/) で動作します。
 
@@ -72,12 +998,6 @@ toio コア キューブ が発見された後、M5Stack の A ボタンを押�
 BLE 接続中、ジョイスティックの z 軸を押すと、チャルメロが再生されます。また、M5Stack の B ボタンを押すと、toio コア キューブ の LED が白で点灯します。
 
 [![joystick_drive のデモ](https://img.youtube.com/vi/FLccNi00Pds/0.jpg)](https://www.youtube.com/watch?v=FLccNi00Pds)
-
-## <a id="Methods">メソッド</a>
-
-**準備中**
-
-前述のサンプルスケッチを参考にしてください。
 
 ---------------------------------------
 ## <a id="Release-Note">リリースノート</a>
